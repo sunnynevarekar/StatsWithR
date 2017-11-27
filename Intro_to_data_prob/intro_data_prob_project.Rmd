@@ -1,0 +1,196 @@
+---
+title: "Exploring the BRFSS data using R"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+This data is BRFSS data for year 2013. BRFSS is an ongoing surveillance system which conducts health-related telephone surveys that collect state data about U.S. residents regarding their health-related risk behaviors, chronic health conditions, and use of preventive services. BRFSS now collects data in all 50 states as well as the District of Columbia and three U.S. territories. All 50 states, the District of Columbia, Puerto Rico, and Guam collect data annually and American Samoa, Federated States of Micronesia, and Palau collect survey data over a limited point- in-time (usually one to three months).
+
+
+## Setup
+
+### Load packages
+Let us first laod the packages we will need for our analysis.
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+Next, we load the BRFSS 2013 data from the file brfss2013.RData in our working directory.
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+
+
+* * *
+
+## Part 1: Data
+This data is collected by conducting landline telephone- and cellular telephone-based surveys and pertain to the non-institutionalized adult population, aged 18 years or older, who reside in the US. In conducting the BRFSS landline telephone survey, interviewers collect data from a randomly selected adult in a household. In conducting the cellular telephone version of the BRFSS questionnaire, interviewers collect data from an adult who participates by using a cellular telephone and resides in a private residence or college housing and received 90 percent or more of their calls on cellular telephones. 
+
+No direct method of accounting for non-telephone coverage is employed by the BRFSS. BRFSS excludes those living in nursing homes, long-term care facilities, military installations, and correctional institutions. Hence, the sample is not true representative of entire US adult population and the result of the analysis may not be generalized to the entire US adult population. However, as per the information given in [overview of 2013 annual BRFSS data](https://www.cdc.gov/brfss/annual_data/2013/pdf/overview_2013.pdf), for landline telephone samples, disproportionate stratified sample (DSS) design and random sampling method was used. For cellular telephone samples, random sampling method was used. Hence, the result of this analysis can be generalized to the subsection of U.S. adult population who had landline or cellular telephone service and resided in private residence or college housing.
+
+This is an observational study and no random assignment was done. Hence, we cannot infer causality.
+
+Due to the methodology employed for collecting the sample data, it is prone to recall bias. There is also a possibility of underreporting adult individuals who do not use a telephone or who do not respond to the telephone surveys. 
+
+* * *
+
+## Part 2: Research questions
+
+**Research quesion 1:**  
+Is there a relation between education, income level and health? 
+It would be interesting to see the independent effects of income and educational attainment on health as socio-economic status is believed to be associated with a variety of health-related behaviours.
+
+
+**Research quesion 2:**  
+Is there a relationship between lack of adequate sleep and high blood pressure. how does this relationship vary across gender?
+
+There was a study published in 2013 in the journal [`Sleep Medicine`](http://www.sleep-journal.com/article/S1389-9457(12)00444-3/fulltext) that demonstrate the link between sleep and hypertension. In this study, titled Epidemiological Evidence for the Link Between Sleep Duration and High Blood Pressure, the authors reviewed 21 studies involving 225,000 subjects. They found that short sleepers, as defined by sleeping less than six hours a night, were much more likely to develop hypertension.
+
+We will see if we find similar relation in the data that we have in hand.
+
+**Research quesion 3:**
+Is there a relationship between race and being overweight or obese and also, with physical activity? How does this relationship vary across gender?
+
+We are perticularly interested in analyzing this relationship between US hispanic and White population.
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+**Research quesion 1:**  
+We want to invistigate if there is any relationship between income level and health. From BRFSS codebook, we can see there are two calulated variables which we can use to answer this question.  
+
+`_incomg`: Computed Income Categories  
+`_rfhlth`: Adults With Good Or Better Health  
+
+But, first let us see what values each of these variables hold.
+
+
+```{r}
+brfss2013 %>% group_by(X_incomg) %>% summarise(count = n())
+```
+
+We can see `X_incomg` is a categorical varible with 5 different income levels - Less than $15,000, $15,000 to less than $25,000, $25,000 to less than $35,000, $35,000 to less than $50,000 and $50,000 or more. Also, there are 71428 missing values which we would want to get rid of before performing our analysis.  
+
+```{r}
+brfss2013 %>% group_by(X_rfhlth) %>% summarise(count = n())
+```
+
+As we can see the variable `X_rfhlth` divides the sample data into two cateogories, U.S. adult individuals with Good or Better Health and those with Fair or Poor Health. We also see there are 1989 missing values for this variable.  
+
+We can see the relationship between these two categorical variables using a contigency table. We will remove the missing values before creating the contigency table.  
+
+```{r}
+cont_table_incom = table(brfss2013 %>% filter(!is.na(X_incomg)) %>% filter(!is.na(X_rfhlth)) %>% select(X_incomg, X_rfhlth))
+cont_table_incom
+```
+We observe that the ratio of U.S. adult individuals with Good or Better Health to those with Fair or Poor Health is increasing with the increase in income level. We can visualize the same using a mosaic plot.  
+
+```{r fig.width=12, fig.height=5}
+mosaicplot(cont_table_incom, main = "Income vs. Heath plot", xlab = "Income Level", ylab="Health Condition", color = c("#F8766D", "#00BFC4"))
+```
+From the above plot, U.S. adult population with a higher income level appear to have a better health as proportion of adults with 'Good or better health' to those with 'Fair or poor health' is increasing with increase in income.  
+
+Next, we will analyse the relationship between education and health. From BRFSS code the calculated variable `_educag` might be useful for this. 
+
+`_educag`: Computed Level Of Education Completed Categories.
+
+First, let's see the levels this categorical variable has.  
+```{r}
+brfss2013 %>% group_by(X_educag) %>% summarise(count = n())
+```
+
+As noted above, we need to remove the missing values for `X_educag` while performing our analysis.
+
+```{r fig.width=12 , fig.height=5}
+cont_table_edu_health = table(brfss2013 %>% filter(!is.na(X_educag)) %>% filter(!is.na(X_rfhlth)) %>% select(X_educag, X_rfhlth))
+mosaicplot(cont_table_edu_health, main = "Education vs. Heath plot", xlab = "Education Level", ylab="Health Condition", color = c("#F8766D", "#00BFC4"))
+```
+
+The above plot shows that individuals with higher education appear to have better health than those with the lower education .  
+
+From above analysis we observed that there is a positive relationship between health of a U.S. adult individual and his/her income level and education attainment. 
+
+**Research quesion 2:**  
+Is there a relationship between lack of adequate sleep and high blood pressure? how does this relationship vary across gender?    
+
+We consider the below variables from BRFSS codebook.  
+
+`sleptim1`: How Much Time Do You Sleep? 
+
+`_rfhype5`: High Blood Pressure Calculated Variable. 
+Adults who have been told they have high blood pressure by a doctor, nurse, or other health professional.
+
+`sex`: Respondents Sex.  
+
+Let us see how the sleeptime variable `sleptim1` is distributed.
+```{r}
+table(brfss2013 %>% select(sleptim1))
+```
+There is something unusual about this data. There are two extreme sleep time values - 103 and 450. As sleep time cannot be greater than 24 hours, we will exclude these extreme values.  
+
+```{r}
+brfss2013_sleep24 <- brfss2013 %>% filter(sleptim1 <=24) 
+ggplot(data = brfss2013_sleep24, aes(x=sleptim1)) + ggtitle("Histogram of Sleep time") + xlim(c(0,25)) + xlab("Sleep time") + geom_histogram(binwidth = 1, fill=I("blue"), col=I("darkblue"), alpha=I(.5))    
+```  
+
+We see that the distribution of sleep time is right skewed with mean around 7 hours and very few individuals have sleep time greater than 12 hours.  
+
+As we want to analyse the relationship between adequate sleep and hypertension, we will create a new variable `adqt_slep` which has a value of No if `sleptim1` is less than or equal to 6 hours indicating inadequate sleep and Yes if `sleptim1` is greater than 6 hours and less than or equal to 12 hours indicating adequate sleep.
+
+```{r}
+brfss2013_sleep12 <- brfss2013 %>% filter(sleptim1 <=12) %>% filter(!is.na(X_rfhype5)) %>% filter(!is.na(sex)) %>% select(sleptim1, X_rfhype5, sex)
+brfss2013_sleep12 <- brfss2013_sleep12 %>% mutate(adqt_slep = ifelse(sleptim1 > 6, "Yes", "No"))
+brfss2013_sleep12 %>% group_by(adqt_slep) %>% summarise(count = n())
+```
+
+```{r}
+ggplot(data = brfss2013_sleep12, aes(x=adqt_slep, fill=X_rfhype5)) +geom_bar(position = "fill") + xlab("Adquate sleep") + ylab("Proportion") + scale_fill_discrete(name="Has hypertension?")
+```
+
+The proportion of U.S adult individuals reported to have hypertension is more in people who do not get adquate sleep than in those who get adquate sleep. We need further statistical analysis to find out if this difference is significant.  
+
+Let us see the effect of gender.  
+```{r}
+ggplot(data = brfss2013_sleep12, aes(x=sex, fill=X_rfhype5)) +geom_bar(position = "fill") + facet_grid(.~adqt_slep) + xlab("Adquate sleep by gender") + ylab("Proportion") + scale_fill_discrete(name="Has hypertension")
+```
+
+Among individuals who get adquate sleep, proportion of male having hypertension is more than that of females. However, among individuals who do not get adquate sleep, there does not seem to be much difference between proportion of males and proportion females with hypertension.
+Hence, from the sample data there appears to be a relationship between inadequate sleep and hypertension but gender does not seem to have much effect on the same.  
+
+**Research quesion 3:**  
+Is there relatonship between race and being overweight or obese and also, with physical activity? How does this relationship vary across gender?  
+
+We will consider only two races among U.S.adult population White, non hispanic and and Hispanic.  
+Below calculated variables from BRFSS2013 codebook will be useful for this analysis.  
+`_race`: Computed Race-Ethnicity Grouping  
+`_rfbmi5`: Overweight Or Obese Calculated Variable  
+`_pacat1`: Physical Activity Categories  
+
+```{r}
+ brfss2013_race_bmi <- brfss2013 %>% filter(X_race=="White only, non-Hispanic" | X_race=="Hispanic") %>% select(X_race, X_rfbmi5, sex) %>% filter(!is.na(X_rfbmi5))  
+
+ggplot(data = brfss2013_race_bmi, aes(x=sex, fill=X_rfbmi5)) +geom_bar(position = "fill") + facet_grid(.~X_race) + xlab("Race") + ylab("Proportion") + scale_fill_discrete(name="Is overweight?")    
+```
+
+Overall the percentage of overweight hispanic U.S. individuals is more than that of U.S. whites. This difference appear to be perticularly significant among females than males.
+
+Should we expect a similar trend about physical activty?  
+We will use the calculated categorical variable `_pacat1` which indicates how physically active an individual is.    
+
+```{r}
+brfss2013_race_activity  <- brfss2013 %>% select(X_race, X_pacat1, sex) %>% filter(X_race=="White only, non-Hispanic" | X_race=="Hispanic") %>% filter(!is.na(X_pacat1))  
+
+ggplot(data = brfss2013_race_activity, aes(x=sex, fill=X_pacat1)) +geom_bar(position = "fill") + facet_grid(.~X_race) + xlab("Race") + ylab("Proportion") + scale_fill_discrete(name="Activity")  
+```
+
+As expected, U.S. white males and females appear to be more active than hispanic males and females respectively.
+
+
